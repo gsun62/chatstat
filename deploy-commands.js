@@ -3,9 +3,10 @@ const { REST } = require('@discordjs/rest');
 const { clientId, guildId, token } = require('./config.json');
 
 const commands = [
-	new SlashCommandBuilder().setName('ping').setDescription('Replies with pong!'),
-	new SlashCommandBuilder().setName('server').setDescription('Replies with server info!'),
+	new SlashCommandBuilder().setName('ping').setDescription('Replies with Pong!'),
+  new SlashCommandBuilder().setName('server').setDescription('Replies with server info!'),
 	new SlashCommandBuilder().setName('user').setDescription('Replies with user info!'),
+  new SlashCommandBuilder().setName('date').setDescription('Replies with current date!'),
 ]
 	.map(command => command.toJSON());
 
