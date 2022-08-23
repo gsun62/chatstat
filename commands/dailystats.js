@@ -10,19 +10,16 @@ module.exports = {
     console.log(`Received ${messages.size} messages`);
 
     const d = new Date();
-    const month = d.getMonth() < 9 ? `0${d.getMonth()+1}` : `${d.getMonth()+1}`;
-    const today = `${d.getFullYear()}-${month}-${d.getDate()}`;
+    // const month = d.getMonth() < 9 ? `0${d.getMonth()+1}` : `${d.getMonth()+1}`;
+    // const today = `${d.getFullYear()}-${month}-${d.getDate()}`;
 
-    messages = messages.filter(message => {
-      let m = message.createdAt;
-      let mMonth = m.getMonth() < 9 ? `0${m.getMonth()+1}` : `${m.getMonth()+1}`;
-      let messageDate = `${m.getFullYear()}-${mMonth}-${m.getDate()}`;
-      return messageDate == today;
-    });
+    messages = messages.filter(message => 
+      message.createdAt.toLocaleDateString() == d.toLocaleDateString());
+
     console.log(`${messages.size} messages after filtering.`);
 
 
-    // tracking number of messages sent by user today
+    // REPORTING MESSAGES SENT BY USER
 
     // populating map with all channel members
     let memberMessages = new Map();
@@ -45,6 +42,50 @@ module.exports = {
     for (let member of memberMessages.keys()) {
       console.log(`${member}: ${memberMessages.get(member)} messages today`);
     }
+
+    // REPORTING AVG MESSAGE LENGTH
+    let sum = 0;
+    messages.forEach(message => sum += message.content.length);
+    console.log(`Average message length: ${sum/messages.size} characters`);
+
+    // REPORTING MOST ACTIVE 1 HOUR PERIOD, sliding window
+    let start = 0;
+    let end = 0;
+    let min = 0;
+    let max = 0;
+
+    let minutes = new Map();
+
+    // populate map with minutes that messages were sent & num of messages
+    messages.forEach(message => {
+      let minute = message.createdAt.getHours()*60 + message.createdAt.getMinutes();
+      if (!messages.has(minute)) {
+        messages.set(minute, 1);
+      } else {
+        let x = messages.get(minute) + 1;
+        messages.set(author, x);
+      }
+    });
+
+    // for each minute, check 60 minute interval starting there and record num of messages
+    let maxSum = 0;
+    minutes.forEach(minute => {
+      let x = minute;
+      let sum = 0;
+      while (x <= minute + 60) {
+        if minutes.has(x) {
+          sum += minutes.get(x);
+        }
+      }
+      maxSum = (sum > maxSum) ? sum : maxSum;
+    });
+    
+    while (start <= 23*60) {
+
+
+    }
+
+
 
   },
 };
