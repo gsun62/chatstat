@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, Collection } = require('discord.js');
+const { SlashCommandBuilder, Collection, GuildMember } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -21,7 +21,31 @@ module.exports = {
     });
     console.log(`${messages.size} messages after filtering.`);
 
-    // messages.forEach(message => console.log(message.content));
+
+    // tracking number of messages sent by user today
+
+    // populating map with all channel members
+    let memberMessages = new Map();
+    for (let member of interaction.channel.members.values()) {
+      memberMessages.set(member.displayName, 0);
+    }
+
+    // updating # of messages per member
+    messages.forEach(message => {
+      let author = message.member.displayName;
+      if (!memberMessages.has(author)) {
+        memberMessages.set(author, 0);
+      } else {
+        let x = memberMessages.get(author) + 1;
+        memberMessages.set(author, x);
+      }
+    });
+
+    // output activity by member
+    for (let member of memberMessages.keys()) {
+      console.log(`${member}: ${memberMessages.get(member)} messages today`);
+    }
+
   },
 };
 
