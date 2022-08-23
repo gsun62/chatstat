@@ -9,87 +9,109 @@ module.exports = {
     let messages = await fetchMore(interaction.channel);
     console.log(`Received ${messages.size} messages`);
 
+    // filter to obtain today's messages
     const d = new Date();
-    // const month = d.getMonth() < 9 ? `0${d.getMonth()+1}` : `${d.getMonth()+1}`;
-    // const today = `${d.getFullYear()}-${month}-${d.getDate()}`;
-
     messages = messages.filter(message => 
       message.createdAt.toLocaleDateString() == d.toLocaleDateString());
+    console.log(`${messages.size} messages after filtering.\n`);
 
-    console.log(`${messages.size} messages after filtering.`);
-
-
-    // REPORTING MESSAGES SENT BY USER
-
-    // populating map with all channel members
-    let memberMessages = new Map();
-    for (let member of interaction.channel.members.values()) {
-      memberMessages.set(member.displayName, 0);
-    }
-
-    // updating # of messages per member
-    messages.forEach(message => {
-      let author = message.member.displayName;
-      if (!memberMessages.has(author)) {
-        memberMessages.set(author, 0);
-      } else {
-        let x = memberMessages.get(author) + 1;
-        memberMessages.set(author, x);
-      }
-    });
-
-    // output activity by member
-    for (let member of memberMessages.keys()) {
-      console.log(`${member}: ${memberMessages.get(member)} messages today`);
-    }
-
-    // REPORTING AVG MESSAGE LENGTH
-    let sum = 0;
-    messages.forEach(message => sum += message.content.length);
-    console.log(`Average message length: ${sum/messages.size} characters`);
-
-    // REPORTING MOST ACTIVE 1 HOUR PERIOD, sliding window
-    let start = 0;
-    let end = 0;
-    let min = 0;
-    let max = 0;
-
-    let minutes = new Map();
-
-    // populate map with minutes that messages were sent & num of messages
-    messages.forEach(message => {
-      let minute = message.createdAt.getHours()*60 + message.createdAt.getMinutes();
-      if (!messages.has(minute)) {
-        messages.set(minute, 1);
-      } else {
-        let x = messages.get(minute) + 1;
-        messages.set(author, x);
-      }
-    });
-
-    // for each minute, check 60 minute interval starting there and record num of messages
-    let maxSum = 0;
-    minutes.forEach(minute => {
-      let x = minute;
-      let sum = 0;
-      while (x <= minute + 60) {
-        if minutes.has(x) {
-          sum += minutes.get(x);
-        }
-      }
-      maxSum = (sum > maxSum) ? sum : maxSum;
-    });
-    
-    while (start <= 23*60) {
-
-
-    }
-
-
-
+    // summary
+    console.log(userReport(interaction, messages));
+    console.log(`Average message length: ${avgLength(messages)} characters\n`);
+    console.log(mostLeastActiveHours(messages));
   },
 };
 
+
+// REPORTING MESSAGES SENT BY USER
+function userReport(interaction, messages) {
+
+  // populating map with all channel members
+  let memberMessages = new Map();
+  for (let member of interaction.channel.members.values()) {
+    memberMessages.set(member.displayName, 0);
+  }
+
+  // updating # of messages per member
+  messages.forEach(message => {
+    let author = message.member.displayName;
+    if (!memberMessages.has(author)) {
+      memberMessages.set(author, 0);
+    } else {
+      let x = memberMessages.get(author) + 1;
+      memberMessages.set(author, x);
+    }
+  });
+
+  // output activity by member
+  let report = '';
+  for (let member of memberMessages.keys()) {
+    report += `${member}: ${memberMessages.get(member)} messages today\n`;
+  }
+  return report;
+}
+
+
+// REPORTING AVG MESSAGE LENGTH
+function avgLength(messages) {
+  let sum = 0;
+  messages.forEach(message => sum += message.content.length);
+  return sum / messages.size;
+}
+
+// REPORTING MOST & LEAST ACTIVE 1 HOUR PERIOD, sliding window
+function mostLeastActiveHours(messages) {
+  
+  // create map for every minute of the day
+  let minutes = new Map();
+  for (let x = 0; x < 24*60; x++) {
+    minutes.set(x, 0);
+  }
+
+  // populate map with minutes that messages were sent & num of messages
+  messages.forEach(message => {
+    let minute = message.createdAt.getHours()*60 + message.createdAt.getMinutes();
+    let x = minutes.get(minute) + 1;
+    minutes.set(minute, x);
+  });
+
+  // initial max & min sums
+  let maxStart = 0;
+  let minStart = 0;
+  let maxSum = 0;
+  for (let i = 0; i < 60; i++) {
+    maxSum += minutes.get(i);
+  }
+  let minSum = maxSum;
+
+  // sliding window
+  for (let i = 1; i < 23 * 60; i++) {
+    let sum = maxSum - minutes.get(i-1) + minutes.get(i+59);
+    if (sum > maxSum) {
+      maxSum = sum;
+      maxStart = i;
+    }
+    if (sum < minSum) {
+      minSum = sum;
+      minStart = i;
+    }
+  }
+
+  let maxPeriod = `${minutesToHours(maxStart)} to ${minutesToHours(maxStart + 60)}`;
+  let minPeriod = `${minutesToHours(minStart)} to ${minutesToHours(minStart + 60)}`;
+  return `Most active period: ${maxPeriod}\nLeast active period: ${minPeriod}`; 
+}
+
+// utility function to convert minutes from midnight to hour:min time
+function minutesToHours(minutes) {
+  let hour = Math.floor(minutes / 60);
+  hour = hour < 10 ? `0${hour}`: hour;
+  let minute = minutes % 60;
+  minute = minute < 10 ? `0${minute}`: minute;
+  return `${hour}:${minute}`;
+}
+
+// utility function to fetch more messages in a text channel
 async function fetchMore(channel, limit = 500) {
   if (!channel) {
     throw new Error(`Expected channel, got ${typeof channel}.`);
