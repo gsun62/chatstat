@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, Collection, GuildMember } = require('discord.js');
+const { SlashCommandBuilder, Collection, EmbedBuilder, Embed} = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -16,9 +16,26 @@ module.exports = {
     console.log(`${messages.size} messages after filtering.\n`);
 
     // summary
-    console.log(userReport(interaction, messages));
-    console.log(`Average message length: ${avgLength(messages)} characters\n`);
-    console.log(mostLeastActiveHours(messages));
+    // console.log(userReport(interaction, messages));
+    // console.log(`Average message length: ${avgLength(messages)} characters\n`);
+    // console.log(mostLeastActiveHours(messages));
+
+    const reportEmbed = new EmbedBuilder()
+      .setColor(0x0099FF)
+      .setTitle('Daily Stats')
+      .setURL('https://discord.js.org/')
+      .setAuthor({ name: 'ChatStat', iconURL: 'https://i.imgur.com/AfFp7pu.png', url: 'https://discord.js.org' })
+      .setDescription('A report of daily statistics for this channel.')
+      .addFields(
+        { name: 'Total Messages Today', value: `${messages.size}`},
+        { name: 'User Activity', value: `${userReport(interaction, messages)}`},
+        { name: 'Average Message Length', value: `${avgLength(messages)} characters`},
+        { name: 'Most and Least Active Hours', value: `${mostLeastActiveHours(messages)}`},
+      )
+      .setTimestamp()
+      .setFooter({ text: 'GUH!', iconURL: 'https://i.imgur.com/AfFp7pu.png' });
+    
+    await interaction.reply({ embeds: [reportEmbed] });
   },
 };
 
@@ -56,7 +73,7 @@ function userReport(interaction, messages) {
 function avgLength(messages) {
   let sum = 0;
   messages.forEach(message => sum += message.content.length);
-  return sum / messages.size;
+  return (sum / messages.size + 0.005).toFixed(2);
 }
 
 // REPORTING MOST & LEAST ACTIVE 1 HOUR PERIOD, sliding window
