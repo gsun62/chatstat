@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, Collection, EmbedBuilder, Embed} = require('discord.js');
+const wait = require('node:timers/promises').setTimeout;
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -6,6 +7,9 @@ module.exports = {
     .setDescription('Reports daily user statistics.'),
   async execute(interaction) {
     
+    await interaction.deferReply();
+		await wait(4000);
+
     let messages = await fetchMore(interaction.channel);
     console.log(`Received ${messages.size} messages`);
 
@@ -16,9 +20,9 @@ module.exports = {
     console.log(`${messages.size} messages after filtering.\n`);
 
     // summary
-    // console.log(userReport(interaction, messages));
-    // console.log(`Average message length: ${avgLength(messages)} characters\n`);
-    // console.log(mostLeastActiveHours(messages));
+    console.log(userReport(interaction, messages));
+    console.log(`Average message length: ${avgLength(messages)} characters\n`);
+    console.log(mostLeastActivePeriods(messages, 2));
 
     const reportEmbed = new EmbedBuilder()
       .setColor(0x0099FF)
@@ -30,12 +34,13 @@ module.exports = {
         { name: 'Total Messages Today', value: `${messages.size}`},
         { name: 'User Activity', value: `${userReport(interaction, messages)}`},
         { name: 'Average Message Length', value: `${avgLength(messages)} characters`},
-        { name: 'Most and Least Active Hours', value: `${mostLeastActiveHours(messages)}`},
+        { name: 'Most and Least Active Hours', value: `${mostLeastActivePeriods(messages, 30)}`},
       )
       .setTimestamp()
       .setFooter({ text: 'GUH!', iconURL: 'https://i.imgur.com/AfFp7pu.png' });
     
-    await interaction.reply({ embeds: [reportEmbed] });
+    // await interaction.editReply('feet');
+    await interaction.editReply({ embeds: [reportEmbed] });
   },
 };
 
@@ -51,6 +56,8 @@ function userReport(interaction, messages) {
 
   // updating # of messages per member
   messages.forEach(message => {
+    if (!message.member)
+      return;
     let author = message.member.displayName;
     if (!memberMessages.has(author)) {
       memberMessages.set(author, 0);
@@ -76,8 +83,8 @@ function avgLength(messages) {
   return (sum / messages.size + 0.005).toFixed(2);
 }
 
-// REPORTING MOST & LEAST ACTIVE 1 HOUR PERIOD, sliding window
-function mostLeastActiveHours(messages) {
+// REPORTING MOST & LEAST ACTIVE PERIOD, sliding window
+function mostLeastActivePeriods(messages, width) {
   
   // create map for every minute of the day
   let minutes = new Map();
@@ -96,14 +103,16 @@ function mostLeastActiveHours(messages) {
   let maxStart = 0;
   let minStart = 0;
   let maxSum = 0;
-  for (let i = 0; i < 60; i++) {
+
+  for (let i = 0; i < width; i++) {
     maxSum += minutes.get(i);
   }
+  let sum = maxSum;
   let minSum = maxSum;
 
   // sliding window
   for (let i = 1; i < 23 * 60; i++) {
-    let sum = maxSum - minutes.get(i-1) + minutes.get(i+59);
+    sum = sum - minutes.get(i-1) + minutes.get(i+width-1);
     if (sum > maxSum) {
       maxSum = sum;
       maxStart = i;
@@ -114,9 +123,9 @@ function mostLeastActiveHours(messages) {
     }
   }
 
-  let maxPeriod = `${minutesToHours(maxStart)} to ${minutesToHours(maxStart + 60)}`;
-  let minPeriod = `${minutesToHours(minStart)} to ${minutesToHours(minStart + 60)}`;
-  return `Most active period: ${maxPeriod}\nLeast active period: ${minPeriod}`; 
+  let maxPeriod = `${minutesToHours(maxStart)} to ${minutesToHours(maxStart + width)}, with ${maxSum} messages sent`;
+  let minPeriod = `${minutesToHours(minStart)} to ${minutesToHours(minStart + width)}, with ${minSum} messages sent`;
+  return `Most active ${width}-minute period: ${maxPeriod}\nLeast active ${width}-minute period: ${minPeriod}`; 
 }
 
 // utility function to convert minutes from midnight to hour:min time
@@ -129,7 +138,7 @@ function minutesToHours(minutes) {
 }
 
 // utility function to fetch more messages in a text channel
-async function fetchMore(channel, limit = 500) {
+async function fetchMore(channel, limit = 1000) {
   if (!channel) {
     throw new Error(`Expected channel, got ${typeof channel}.`);
   }
