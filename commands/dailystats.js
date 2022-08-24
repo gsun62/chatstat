@@ -34,7 +34,7 @@ module.exports = {
         { name: 'Total Messages Today', value: `${messages.size}`},
         { name: 'User Activity', value: `${userReport(interaction, messages)}`},
         { name: 'Average Message Length', value: `${avgLength(messages)} characters`},
-        { name: 'Most and Least Active Hours', value: `${mostLeastActivePeriods(messages, 30)}`},
+        { name: 'Most Recent Active/Inactive Times', value: `${mostLeastActivePeriods(messages, 30)}`},
       )
       .setTimestamp()
       .setFooter({ text: 'GUH!', iconURL: 'https://i.imgur.com/AfFp7pu.png' });
@@ -80,15 +80,20 @@ function userReport(interaction, messages) {
 function avgLength(messages) {
   let sum = 0;
   messages.forEach(message => sum += message.content.length);
-  return (sum / messages.size + 0.005).toFixed(2);
+  return Math.round(sum / messages.size);
 }
 
 // REPORTING MOST & LEAST ACTIVE PERIOD, sliding window
 function mostLeastActivePeriods(messages, width) {
   
-  // create map for every minute of the day
+  const d = new Date();
+  const now = d.getHours()*60 + d.getMinutes();
+  if (width > now) 
+    return `It hasn't been ${width} minutes past midnight yet!`;
+
+  // create map for every minute up to now
   let minutes = new Map();
-  for (let x = 0; x < 24*60; x++) {
+  for (let x = 0; x <= now; x++) {
     minutes.set(x, 0);
   }
 
@@ -104,20 +109,20 @@ function mostLeastActivePeriods(messages, width) {
   let minStart = 0;
   let maxSum = 0;
 
-  for (let i = 0; i < width; i++) {
+  for (let i = 0; i <= width; i++) {
     maxSum += minutes.get(i);
   }
   let sum = maxSum;
   let minSum = maxSum;
 
   // sliding window
-  for (let i = 1; i < 23 * 60; i++) {
-    sum = sum - minutes.get(i-1) + minutes.get(i+width-1);
-    if (sum > maxSum) {
+  for (let i = 1; i <= now-width+1; i++) {
+    sum = sum - minutes.get(i-1) + minutes.get(i+width);
+    if (sum >= maxSum) {
       maxSum = sum;
       maxStart = i;
     }
-    if (sum < minSum) {
+    if (sum <= minSum) {
       minSum = sum;
       minStart = i;
     }
